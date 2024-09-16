@@ -13,7 +13,7 @@
             height: 100vh;
             margin: 0;
             font-family: Arial, sans-serif;
-            background-color: #f0f0f0;
+            background-color: #0f0f0f;
         }
 
         .container {
@@ -36,8 +36,8 @@
             align-items: center;
             width: 100px;
             height: 100px;
-            background-color: #2196f3;
-            color: white;
+            background-color: #830c0c;
+            color: rgb(243, 235, 235);
             font-size: 24px;
             cursor: pointer;
             user-select: none;
@@ -45,30 +45,23 @@
         }
 
         .tile.empty {
-            background-color: #f0f0f0;
+            background-color: #f3b1b1;
             cursor: default;
             box-shadow: none;
         }
 
-        .board-state {
-            margin-top: 20px;
-            font-size: 18px;
-            font-weight: bold;
-            color: #333;
-        }
-
-        .inversions {
+        .board-state, .move-count, .inversions, .manhattan, .swaps, .parity {
             margin-top: 10px;
             font-size: 16px;
-            color: #555;
+            color: #fdfcfc;
         }
 
-        .shuffle-button {
+        .shuffle-button, .calculate-parity-button {
             margin-top: 20px;
             padding: 10px 20px;
             font-size: 16px;
             cursor: pointer;
-            background-color: #4CAF50;
+            background-color: #882904;
             color: white;
             border: none;
             border-radius: 5px;
@@ -76,14 +69,19 @@
             transition: background-color 0.3s;
         }
 
-        .shuffle-button:hover {
-            background-color: #45a049;
+        .shuffle-button:hover, .calculate-parity-button:hover {
+            background-color: #882904;
         }
 
-        .move-count {
-            margin-top: 10px;
+        .input-container {
+            margin-top: 20px;
+        }
+
+        .input-container input {
             font-size: 16px;
-            color: #555;
+            padding: 5px;
+            width: 300px;
+            box-sizing: border-box;
         }
     </style>
 </head>
@@ -108,8 +106,21 @@
     <div class="inversions" id="inversionsCount">
         Inversões: 0 (Paridade: par)
     </div>
+    <div class="manhattan" id="manhattanDistance">
+        Distância Manhattan: 0
+    </div>
+    <div class="swaps" id="swapCount">
+        Trocas realizadas: []
+    </div>
     <div class="move-count" id="moveCount">
         Número de jogadas: 0
+    </div>
+    <div class="input-container">
+        <input type="text" id="userInput" placeholder="Digite o estado do tabuleiro, ex: 1,2,3,4,5,6,7,8,0">
+        <button class="calculate-parity-button" id="calculateParityButton">Calcular Paridade</button>
+    </div>
+    <div class="parity" id="parityResult">
+        Paridade do tabuleiro: 
     </div>
     <script>
         document.addEventListener('DOMContentLoaded', () => {
@@ -117,13 +128,18 @@
             const grid = document.querySelector('.grid');
             const boardStateDisplay = document.getElementById('boardState');
             const inversionsDisplay = document.getElementById('inversionsCount');
+            const manhattanDisplay = document.getElementById('manhattanDistance');
+            const swapCountDisplay = document.getElementById('swapCount');
             const moveCountDisplay = document.getElementById('moveCount');
             const shuffleButton = document.getElementById('shuffleButton');
+            const userInput = document.getElementById('userInput');
+            const calculateParityButton = document.getElementById('calculateParityButton');
+            const parityResult = document.getElementById('parityResult');
 
             const goalState = [1, 2, 3, 4, 5, 6, 7, 8, 0];
             let moveCount = 0;
+            let swaps = [];
 
-            // Inicializa o estado do tabuleiro
             let boardState = Array.from(tiles).map(tile => parseInt(tile.dataset.value));
 
             function calculateInversions(state) {
@@ -138,16 +154,44 @@
                 return inversions;
             }
 
+            function calculateManhattanDistance(state) {
+                let distance = 0;
+                for (let i = 0; i < state.length; i++) {
+                    const value = state[i];
+                    if (value === 0) continue;
+
+                    const goalIndex = goalState.indexOf(value);
+                    const goalRow = Math.floor(goalIndex / 3);
+                    const goalCol = goalIndex % 3;
+                    const currentRow = Math.floor(i / 3);
+                    const currentCol = i % 3;
+
+                    distance += Math.abs(goalRow - currentRow) + Math.abs(goalCol - currentCol);
+                }
+                return distance;
+            }
+
+            function calculateParity(state) {
+                const inversions = calculateInversions(state);
+                return inversions % 2 === 0 ? "par" : "ímpar";
+            }
+
             function updateDisplay() {
-                // Exibe o estado do tabuleiro na página
+        
                 boardStateDisplay.textContent = `Estado atual: [${boardState.join(', ')}]`;
 
-                // Calcula e exibe o número de inversões e a paridade
+          
                 const inversions = calculateInversions(boardState);
-                const parity = inversions % 2 === 0 ? "par" : "ímpar";
+                const parity = calculateParity(boardState);
                 inversionsDisplay.textContent = `Inversões: ${inversions} (Paridade: ${parity})`;
 
-                // Exibe o número de jogadas
+
+                const manhattanDistance = calculateManhattanDistance(boardState);
+                manhattanDisplay.textContent = `Distância Manhattan: ${manhattanDistance}`;
+
+
+                swapCountDisplay.textContent = `Trocas realizadas: [${swaps.join(', ')}]`;
+
                 moveCountDisplay.textContent = `Número de jogadas: ${moveCount}`;
             }
 
@@ -158,14 +202,13 @@
             }
 
             function shuffleBoard() {
-                // Embaralha o estado do tabuleiro
                 do {
                     boardState = boardState.sort(() => Math.random() - 0.5);
                 } while (calculateInversions(boardState) % 2 !== 0); // Garante que o estado seja resolvível
 
                 moveCount = 0; // Reseta o contador de jogadas
+                swaps = []; // Reseta a lista de trocas
 
-                // Atualiza o conteúdo visual
                 tiles.forEach((tile, index) => {
                     tile.textContent = boardState[index] === 0 ? "" : boardState[index];
                     tile.dataset.value = boardState[index];
@@ -177,11 +220,21 @@
                     }
                 });
 
-                // Atualiza as exibições
                 updateDisplay();
             }
 
-            updateDisplay(); // Atualiza a exibição inicialmente
+            function calculateAndDisplayParity() {
+                const stateInput = userInput.value.split(',').map(Number);
+                if (stateInput.length !== 9 || stateInput.some(num => num < 0 || num > 8 || isNaN(num))) {
+                    parityResult.textContent = "Entrada inválida! Certifique-se de que a entrada tenha 9 números entre 0 e 8, separados por vírgulas.";
+                    return;
+                }
+
+                const parity = calculateParity(stateInput);
+                parityResult.textContent = `Paridade do tabuleiro: ${parity}`;
+            }
+
+            updateDisplay(); 
 
             grid.addEventListener('click', (e) => {
                 const tile = e.target;
@@ -191,6 +244,7 @@
             });
 
             shuffleButton.addEventListener('click', shuffleBoard);
+            calculateParityButton.addEventListener('click', calculateAndDisplayParity);
 
             function moveTile(tile) {
                 const emptyTile = document.querySelector('.tile.empty');
@@ -211,24 +265,21 @@
                 };
 
                 if (validMoves[emptyTileIndex].includes(tileIndex)) {
-                    // Troca de posição entre a peça clicada e a peça vazia
+                    swaps.push(`[${boardState[emptyTileIndex]} <-> ${boardState[tileIndex]}]`);
+
                     [boardState[tileIndex], boardState[emptyTileIndex]] = [boardState[emptyTileIndex], boardState[tileIndex]];
 
-                    // Atualiza o conteúdo visual
                     tile.textContent = boardState[tileIndex] === 0 ? "" : boardState[tileIndex];
                     emptyTile.textContent = boardState[emptyTileIndex] === 0 ? "" : boardState[emptyTileIndex];
 
-                    // Troca as classes para manter a peça vazia correta
                     tile.classList.add('empty');
                     emptyTile.classList.remove('empty');
 
-                    // Incrementa o contador de jogadas
                     moveCount++;
 
-                    // Atualiza as exibições
+
                     updateDisplay();
 
-                    // Verifica se o estado meta foi alcançado
                     checkGoalState();
                 }
             }
